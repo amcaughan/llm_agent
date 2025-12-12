@@ -1,0 +1,74 @@
+# Terraform working
+**/.terraform/
+.terraform/
+
+# Terraform state files (just in case)
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Terraform plan outputs
+*.tfplan
+*.tfplan.*
+
+# Terragrunt cache
+**/.terragrunt-cache/
+.terragrunt-cache/
+
+# dotenv files
+.env
+.env.*
+!.env.example
+
+# AWS credentials (just in case)
+.aws/
+aws-credentials*
+aws-config*
+
+# Terraform variable files
+*.tfvars
+*.tfvars.json
+!*.example.tfvars
+
+# Byte
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Docker
+**/.docker/
+.docker/
+docker-data/
+docker-volumes/
+**/docker-data/
+**/docker-volumes/
+
+# Logs
+*.log
+logs/
+**/logs/
+
+# Runtime artifacts
+tmp/
+temp/
+*.pid
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
