@@ -2,7 +2,8 @@ backend: ollama
 
 ollama:
   host: http://127.0.0.1:11434
-  model_id: qwen2.5:1.5b-instruct
+  model_id: llama3.1
+  # model_id: qwen2.5:1.5b-instruct
 
 bedrock:
   region: us-west-2
