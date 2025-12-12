@@ -12,9 +12,19 @@ def load_config(path: str | Path) -> dict:
     with path.open("r") as f:
         return yaml.safe_load(f)
 
+def find_repo_root(start: Path | None = None) -> Path:
+    if start is None:
+        start = Path(__file__).resolve()
+
+    for parent in [start, *start.parents]:
+        if (parent / "pyproject.toml").exists():
+            return parent
+
+    raise RuntimeError("Could not find repo root (pyproject.toml not found)")
+
 
 def main() -> int:
-    cfg = load_config("../../config/agent.yml")
+    cfg = load_config(find_repo_root() / "config" / "agent.yml")
 
     if cfg["backend"] != "ollama":
         raise ValueError("Smoke test expects backend=ollama")

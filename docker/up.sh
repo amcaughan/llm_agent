@@ -5,7 +5,6 @@ IMAGE_TAG="ollama/ollama:0.12.4"
 
 CONTAINER_NAME="ollama"
 VOLUME_NAME="ollama"
-MODEL="${MODEL:-qwen2.5:1.5b-instruct}"
 
 MODE="${1:-cpu}"  # cpu|gpu
 
@@ -13,6 +12,29 @@ case "$MODE" in
   cpu|gpu) ;;
   *) echo "Usage: $0 [cpu|gpu]"; exit 1 ;;
 esac
+
+# Assumes script is at repo/docker/ollama/up.sh
+REPO_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+CONFIG_FILE="$REPO_ROOT/config/agent.yml"
+
+# Determine model:
+# 1) If MODEL env var is set, use it (explicit override).
+# 2) Else read from config via yq.
+MODEL="${MODEL:-}"
+
+if [ -z "$MODEL" ]; then
+  if command -v yq >/dev/null 2>&1; then
+    MODEL="$(yq -r '.ollama.model_id // ""' "$CONFIG_FILE")"
+  else
+    echo "ERROR: yq is required to read $CONFIG_FILE (or set MODEL=...)" >&2
+    exit 1
+  fi
+fi
+
+if [ -z "$MODEL" ]; then
+  echo "ERROR: No Model! Set MODEL=... or put one in the $CONFIG_FILE"
+  exit 1
+fi
 
 docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
 
@@ -36,3 +58,4 @@ until curl -fsS "http://127.0.0.1:11434/api/tags" >/dev/null 2>&1; do
 done
 
 docker exec "$CONTAINER_NAME" ollama pull "$MODEL"
+echo "Ollama is up. Pulled model: $MODEL"
