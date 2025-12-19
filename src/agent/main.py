@@ -2,6 +2,9 @@ import sys
 from pathlib import Path
 import yaml
 from strands.tools import tool
+import requests
+from strands import Agent
+from strands.models.ollama import OllamaModel
 
 def load_config(path: str | Path) -> dict:
     path = Path(path)
@@ -47,12 +50,11 @@ def main() -> int:
     model_id = ollama_cfg["model_id"]
 
     # Optional reachability check
-    import requests
+    
     r = requests.get(f"{host}/api/tags", timeout=5)
     r.raise_for_status()
 
-    from strands import Agent
-    from strands.models.ollama import OllamaModel
+    
 
     # ---- Tools ----
     def _resolve_path(p: str) -> Path:
