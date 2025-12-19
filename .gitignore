@@ -65,6 +65,7 @@ logs/
 tmp/
 temp/
 *.pid
+build/
 
 # Editors / IDEs
 .vscode/

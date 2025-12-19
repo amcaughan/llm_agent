@@ -2,6 +2,10 @@ import sys
 from pathlib import Path
 import yaml
 from strands.tools import tool
+import requests
+from strands import Agent
+from strands.models.ollama import OllamaModel
+from strands.models.bedrock import BedrockModel
 
 def load_config(path: str | Path) -> dict:
     path = Path(path)
@@ -37,22 +41,24 @@ def get_prompt(argv: list[str]) -> str:
 def main() -> int:
     repo_root = find_repo_root()
     cfg = load_config(repo_root / "config" / "agent.yml")
+    backend = (cfg.get("backend") or "").strip().lower()
+    if backend not in ("ollama", "bedrock"):
+        raise ValueError(f"Error: Unsupported backend: {backend}. Only 'bedrock' and 'ollama' supported")
 
-    # Backend selection (for now, only ollama)
-    if cfg.get("backend") != "ollama":
-        raise ValueError("This entrypoint currently expects backend=ollama")
-
-    ollama_cfg = cfg["ollama"]
-    host = ollama_cfg["host"]
-    model_id = ollama_cfg["model_id"]
-
-    # Optional reachability check
-    import requests
-    r = requests.get(f"{host}/api/tags", timeout=5)
-    r.raise_for_status()
-
-    from strands import Agent
-    from strands.models.ollama import OllamaModel
+    if backend == 'ollama':
+        ollama_cfg = cfg["ollama"]
+        host = ollama_cfg["host"]
+        model_id = ollama_cfg["model_id"]    
+        r = requests.get(f"{host}/api/tags", timeout=5)
+        r.raise_for_status()
+        model = OllamaModel(host=host, model_id=model_id)
+    elif backend == 'bedrock':
+        bedrock_cfg = cfg["bedrock"]
+        region = bedrock_cfg["region"]
+        model_id = bedrock_cfg["model_id"]
+        model = BedrockModel(model_id=model_id, region_name=region)
+    else:
+        raise Exception("Backend model loading error")
 
     # ---- Tools ----
     def _resolve_path(p: str) -> Path:
@@ -91,8 +97,7 @@ def main() -> int:
 
     tools = [read_file, list_dir]
 
-    model = OllamaModel(host=host, model_id=model_id)
-
+    
     agent = Agent(
         model=model,
         system_prompt=cfg["agent"]["system_prompt"],
