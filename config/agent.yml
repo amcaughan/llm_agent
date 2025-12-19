@@ -2,11 +2,11 @@ backend: ollama
 
 ollama:
   host: http://127.0.0.1:11434
-  model_id: llama3.1
-  # model_id: qwen2.5:1.5b-instruct
+  # model_id: llama3.1
+  model_id: qwen2.5:1.5b-instruct
 
 bedrock:
-  region: us-west-2
+  region: us-east-2
   model_id: anthropic.claude-3-sonnet-20240229-v1:0
 
 agent:
