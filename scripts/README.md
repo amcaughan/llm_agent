@@ -11,6 +11,9 @@
 - `ssm_shell.sh`: starts an interactive SSM session to the instance
 - `ssm_tunnel_ollama.sh`: port-forwards remote `11434` to local `11434`
 - `run_agent.sh`: runs the local Strands agent with the chosen backend config
+- `smoke_ollama.sh`: minimal local Ollama smoke test (`agent -> "HI"`)
+- `smoke_bedrock.sh`: minimal Bedrock smoke test (`agent -> "HI"`)
+- `e2e_smoke.sh`: single entrypoint for `ollama|bedrock|all` post-refactor checks
 
 ## Principle
 No script should require opening inbound ports or directly calling EC2 start/stop from your human credentials.

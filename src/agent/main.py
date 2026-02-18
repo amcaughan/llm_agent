@@ -6,6 +6,8 @@ import requests
 from strands import Agent
 from strands.models.ollama import OllamaModel
 from strands.models.bedrock import BedrockModel
+import os
+
 
 def load_config(path: str | Path) -> dict:
     path = Path(path)
@@ -13,6 +15,35 @@ def load_config(path: str | Path) -> dict:
         raise FileNotFoundError(f"Config file not found: {path}")
     with path.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def apply_env_overrides(cfg: dict) -> dict:
+    """Allow simple backend/model overrides without editing config files."""
+    merged = dict(cfg)
+    merged["ollama"] = dict(cfg.get("ollama") or {})
+    merged["bedrock"] = dict(cfg.get("bedrock") or {})
+
+    backend = os.getenv("AGENT_BACKEND")
+    if backend:
+        merged["backend"] = backend
+
+    ollama_host = os.getenv("AGENT_OLLAMA_HOST")
+    if ollama_host:
+        merged["ollama"]["host"] = ollama_host
+
+    ollama_model_id = os.getenv("AGENT_OLLAMA_MODEL_ID")
+    if ollama_model_id:
+        merged["ollama"]["model_id"] = ollama_model_id
+
+    bedrock_region = os.getenv("AGENT_BEDROCK_REGION")
+    if bedrock_region:
+        merged["bedrock"]["region"] = bedrock_region
+
+    bedrock_model_id = os.getenv("AGENT_BEDROCK_MODEL_ID")
+    if bedrock_model_id:
+        merged["bedrock"]["model_id"] = bedrock_model_id
+
+    return merged
 
 
 def find_repo_root(start: Path | None = None) -> Path:
@@ -40,7 +71,7 @@ def get_prompt(argv: list[str]) -> str:
 
 def main() -> int:
     repo_root = find_repo_root()
-    cfg = load_config(repo_root / "config" / "agent.yml")
+    cfg = apply_env_overrides(load_config(repo_root / "config" / "agent.yml"))
     backend = (cfg.get("backend") or "").strip().lower()
     if backend not in ("ollama", "bedrock"):
         raise ValueError(f"Error: Unsupported backend: {backend}. Only 'bedrock' and 'ollama' supported")
@@ -48,7 +79,7 @@ def main() -> int:
     if backend == 'ollama':
         ollama_cfg = cfg["ollama"]
         host = ollama_cfg["host"]
-        model_id = ollama_cfg["model_id"]    
+        model_id = ollama_cfg["model_id"]
         r = requests.get(f"{host}/api/tags", timeout=5)
         r.raise_for_status()
         model = OllamaModel(host=host, model_id=model_id)
@@ -97,7 +128,6 @@ def main() -> int:
 
     tools = [read_file, list_dir]
 
-    
     agent = Agent(
         model=model,
         system_prompt=cfg["agent"]["system_prompt"],

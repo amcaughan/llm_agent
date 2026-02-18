@@ -83,6 +83,13 @@ or:
 echo "List likely next implementation steps." | python -m agent
 ```
 
+You can also override backend/model settings without editing config:
+
+```bash
+AGENT_BACKEND=ollama python -m agent "Reply with exactly HI"
+AGENT_BACKEND=bedrock python -m agent "Reply with exactly HI"
+```
+
 ## Local Ollama workflow
 
 Bring up local Ollama container:
@@ -108,6 +115,28 @@ Purge downloaded models:
 ```bash
 ./docker/ollama/purge-models.sh
 ```
+
+## Smoke tests
+
+Single command (recommended after refactors):
+
+```bash
+./scripts/e2e_smoke.sh all
+```
+
+Run one backend at a time:
+
+```bash
+./scripts/smoke_ollama.sh
+./scripts/smoke_bedrock.sh
+```
+
+Behavior:
+
+- `smoke_ollama.sh` is now fully end-to-end: starts container, runs agent check, tears down.
+- `smoke_bedrock.sh` runs the equivalent Bedrock check.
+- `e2e_smoke.sh all` runs both in sequence.
+- Set `KEEP_OLLAMA_UP=1` if you want to keep the container running after the Ollama smoke test.
 
 ## Infra workflow (Terragrunt)
 

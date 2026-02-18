@@ -14,7 +14,7 @@ case "$MODE" in
 esac
 
 # Assumes script is at repo/docker/ollama/up.sh
-REPO_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 CONFIG_FILE="$REPO_ROOT/config/agent.yml"
 
 # Determine model:
