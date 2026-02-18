@@ -53,6 +53,7 @@ set +e
 output="$(
   cd "$REPO_ROOT" && \
   AGENT_BACKEND="$backend" \
+  AGENT_SUPPRESS_FINAL_PRINT=1 \
   uv run -m agent "$prompt" 2>&1
 )"
 rc=$?
@@ -65,11 +66,11 @@ if [[ $rc -ne 0 ]]; then
 fi
 
 normalized="$(echo "$output" | tr -d '\r' | xargs)"
-if [[ "$normalized" =~ ^(HI)+$ ]]; then
-  echo "PASS: backend=$backend output=$normalized"
+if [[ "$normalized" == "HI" ]]; then
+  echo "PASS: backend=$backend output=HI"
   exit 0
 fi
 
-echo "FAIL: backend=$backend expected output made only of repeated 'HI'" >&2
+echo "FAIL: backend=$backend expected exact output 'HI'" >&2
 echo "Actual output: $output" >&2
 exit 4

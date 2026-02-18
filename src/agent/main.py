@@ -7,6 +7,8 @@ from strands import Agent
 from strands.models.ollama import OllamaModel
 from strands.models.bedrock import BedrockModel
 import os
+from typing import Literal
+from pydantic import BaseModel, ValidationError
 
 
 def load_config(path: str | Path) -> dict:
@@ -15,6 +17,27 @@ def load_config(path: str | Path) -> dict:
         raise FileNotFoundError(f"Config file not found: {path}")
     with path.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+class OllamaConfig(BaseModel):
+    host: str
+    model_id: str
+
+
+class BedrockConfig(BaseModel):
+    region: str
+    model_id: str
+
+
+class AgentConfig(BaseModel):
+    system_prompt: str
+
+
+class AppConfig(BaseModel):
+    backend: Literal["ollama", "bedrock"]
+    ollama: OllamaConfig
+    bedrock: BedrockConfig
+    agent: AgentConfig
 
 
 def apply_env_overrides(cfg: dict) -> dict:
@@ -71,25 +94,30 @@ def get_prompt(argv: list[str]) -> str:
 
 def main() -> int:
     repo_root = find_repo_root()
-    cfg = apply_env_overrides(load_config(repo_root / "config" / "agent.yml"))
-    backend = (cfg.get("backend") or "").strip().lower()
-    if backend not in ("ollama", "bedrock"):
-        raise ValueError(f"Error: Unsupported backend: {backend}. Only 'bedrock' and 'ollama' supported")
+    try:
+        cfg = AppConfig.model_validate(
+            apply_env_overrides(load_config(repo_root / "config" / "agent.yml"))
+        )
+    except FileNotFoundError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 2
+    except ValidationError as e:
+        print("ERROR: invalid config/agent.yml", file=sys.stderr)
+        print(e, file=sys.stderr)
+        return 2
+
+    backend = cfg.backend
 
     if backend == 'ollama':
-        ollama_cfg = cfg["ollama"]
-        host = ollama_cfg["host"]
-        model_id = ollama_cfg["model_id"]
+        host = cfg.ollama.host
+        model_id = cfg.ollama.model_id
         r = requests.get(f"{host}/api/tags", timeout=5)
         r.raise_for_status()
         model = OllamaModel(host=host, model_id=model_id)
-    elif backend == 'bedrock':
-        bedrock_cfg = cfg["bedrock"]
-        region = bedrock_cfg["region"]
-        model_id = bedrock_cfg["model_id"]
-        model = BedrockModel(model_id=model_id, region_name=region)
     else:
-        raise Exception("Backend model loading error")
+        region = cfg.bedrock.region
+        model_id = cfg.bedrock.model_id
+        model = BedrockModel(model_id=model_id, region_name=region)
 
     # ---- Tools ----
     def _resolve_path(p: str) -> Path:
@@ -130,7 +158,7 @@ def main() -> int:
 
     agent = Agent(
         model=model,
-        system_prompt=cfg["agent"]["system_prompt"],
+        system_prompt=cfg.agent.system_prompt,
         tools=tools,
     )
 
@@ -140,7 +168,8 @@ def main() -> int:
         return 2
 
     out = agent(prompt)
-    print(out)
+    if os.getenv("AGENT_SUPPRESS_FINAL_PRINT") != "1":
+        print(out)
     return 0
 
 
