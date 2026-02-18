@@ -133,6 +133,13 @@ Run one backend at a time:
 ./scripts/smoke_bedrock.sh
 ```
 
+Pytest wrappers (safe by default; run only when explicitly enabled):
+
+```bash
+RUN_OLLAMA_SMOKE=1 uv run pytest -m smoke_ollama -q
+RUN_BEDROCK_SMOKE=1 uv run pytest -m smoke_bedrock -q
+```
+
 Behavior:
 
 - `smoke_ollama.sh` is now fully end-to-end: starts container, runs agent check, tears down.

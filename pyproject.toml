@@ -49,3 +49,9 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+markers = [
+  "smoke_ollama: end-to-end smoke test for local Ollama backend",
+  "smoke_bedrock: end-to-end smoke test for Bedrock backend",
+]

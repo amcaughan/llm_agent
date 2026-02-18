@@ -20,3 +20,6 @@ No script should require opening inbound ports or directly calling EC2 start/sto
 
 ## Local runtime note
 - Agent smoke scripts assume `uv` is installed and project deps are synced (`uv sync`).
+- Pytest smoke wrappers are in `tests/test_smoke.py` with env gates:
+  - `RUN_OLLAMA_SMOKE=1 uv run pytest -m smoke_ollama -q`
+  - `RUN_BEDROCK_SMOKE=1 uv run pytest -m smoke_bedrock -q`
