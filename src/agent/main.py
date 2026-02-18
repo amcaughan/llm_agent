@@ -57,8 +57,8 @@ def find_repo_root(start: Path | None = None) -> Path:
 
 def get_prompt(argv: list[str]) -> str:
     # Usage:
-    #   python -m agent "hello"
-    #   echo "hello" | python -m agent
+    #   uv run -m agent "hello"
+    #   echo "hello" | uv run -m agent
     if len(argv) > 1:
         return " ".join(argv[1:]).strip()
 

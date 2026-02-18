@@ -17,3 +17,6 @@
 
 ## Principle
 No script should require opening inbound ports or directly calling EC2 start/stop from your human credentials.
+
+## Local runtime note
+- Agent smoke scripts assume `uv` is installed and project deps are synced (`uv sync`).

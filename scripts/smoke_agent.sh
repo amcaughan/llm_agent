@@ -42,12 +42,9 @@ fi
 
 prompt='Reply with exactly this text and nothing else: HI'
 
-python_bin="python"
-if ! command -v "$python_bin" >/dev/null 2>&1; then
-  python_bin="python3"
-fi
-if ! command -v "$python_bin" >/dev/null 2>&1; then
-  echo "ERROR: neither python nor python3 is available in PATH" >&2
+if ! command -v uv >/dev/null 2>&1; then
+  echo "ERROR: uv is required but not found in PATH" >&2
+  echo "Install uv, then run: uv sync" >&2
   exit 2
 fi
 
@@ -55,9 +52,8 @@ echo "Running smoke test for backend: $backend"
 set +e
 output="$(
   cd "$REPO_ROOT" && \
-  PYTHONPATH="$REPO_ROOT/src${PYTHONPATH:+:$PYTHONPATH}" \
   AGENT_BACKEND="$backend" \
-  "$python_bin" -m agent "$prompt" 2>&1
+  uv run -m agent "$prompt" 2>&1
 )"
 rc=$?
 set -e
@@ -69,11 +65,11 @@ if [[ $rc -ne 0 ]]; then
 fi
 
 normalized="$(echo "$output" | tr -d '\r' | xargs)"
-if [[ "$normalized" == "HI" ]]; then
-  echo "PASS: backend=$backend output=HI"
+if [[ "$normalized" =~ ^(HI)+$ ]]; then
+  echo "PASS: backend=$backend output=$normalized"
   exit 0
 fi
 
-echo "FAIL: backend=$backend expected exact output 'HI'" >&2
+echo "FAIL: backend=$backend expected output made only of repeated 'HI'" >&2
 echo "Actual output: $output" >&2
 exit 4

@@ -27,7 +27,7 @@ This repository is in an early but working stage.
 
 - `src/agent/`
   - `main.py`: agent startup, config loading, backend/model selection, tool registration
-  - `__main__.py`: allows `python -m agent`
+  - `__main__.py`: allows `uv run -m agent`
 - `config/agent.yml`
   - active backend and model IDs
   - system prompt text
@@ -57,9 +57,9 @@ This repository is in an early but working stage.
 
 ```bash
 cd /home/aaron/repos/llm_agent
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
+[ -f "$HOME/.local/bin/env" ] && source "$HOME/.local/bin/env"
+uv sync
 ```
 
 ## 2) Configure backend
@@ -74,20 +74,20 @@ For Bedrock, ensure AWS credentials/profile are available in your shell.
 ## 3) Run the agent
 
 ```bash
-python -m agent "Summarize this repository in 5 bullets."
+uv run -m agent "Summarize this repository in 5 bullets."
 ```
 
 or:
 
 ```bash
-echo "List likely next implementation steps." | python -m agent
+echo "List likely next implementation steps." | uv run -m agent
 ```
 
 You can also override backend/model settings without editing config:
 
 ```bash
-AGENT_BACKEND=ollama python -m agent "Reply with exactly HI"
-AGENT_BACKEND=bedrock python -m agent "Reply with exactly HI"
+AGENT_BACKEND=ollama uv run -m agent "Reply with exactly HI"
+AGENT_BACKEND=bedrock uv run -m agent "Reply with exactly HI"
 ```
 
 ## Local Ollama workflow
@@ -123,6 +123,8 @@ Single command (recommended after refactors):
 ```bash
 ./scripts/e2e_smoke.sh all
 ```
+
+The smoke scripts run the agent with `uv run`, so run `uv sync` once first.
 
 Run one backend at a time:
 

@@ -5,7 +5,9 @@ REQUIRED_APT_PACKAGES=(
   docker.io
   yq
   python3.12
-  python3.12-venv
+  python3-pip
+  curl
+  unzip
 )
 
 echo "Installing apt system dependencies..."
@@ -19,6 +21,16 @@ if ! command -v aws >/dev/null; then
   unzip -q awscliv2.zip
   sudo ./aws/install
   rm -rf aws awscliv2.zip
+fi
+
+echo "Installing uv..."
+if ! command -v uv >/dev/null; then
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+
+if [ -f "$HOME/.local/bin/env" ]; then
+  # shellcheck disable=SC1090
+  . "$HOME/.local/bin/env"
 fi
 
 echo "Done."

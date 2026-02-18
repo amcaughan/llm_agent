@@ -20,11 +20,13 @@ Commands:
   tf           Run terraform ...
   tg           Run terragrunt ...
   py           Run python3 ...
+  uv           Run uv ...
   <other>      Run any command inside the container
 
 Examples:
   $0 shell
   $0 tf plan
+  $0 uv sync
   $0 py -m pytest
 EOF
 }

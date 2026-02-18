@@ -6,7 +6,7 @@ ARG TERRAGRUNT_VERSION=v0.94.0
 
 RUN apt-get update && apt-get install -y \
     sudo git curl unzip ca-certificates \
-    python3 python3-venv python3-pip \
+    python3 python3-pip \
   && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -ms /bin/bash dev \
@@ -25,6 +25,10 @@ RUN curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/te
 RUN curl -fsSL "https://github.com/gruntwork-io/terragrunt/releases/download/${TERRAGRUNT_VERSION}/terragrunt_linux_amd64" \
     -o /usr/local/bin/terragrunt \
   && chmod +x /usr/local/bin/terragrunt
+
+# Install uv so container workflows match host workflows.
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
+  && cp /root/.local/bin/uv /usr/local/bin/uv
 
 USER dev
 WORKDIR /workspace
