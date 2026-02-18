@@ -11,7 +11,9 @@ from .core import ToolPolicy, ToolRuntime, ToolSpec, run_git
 
 
 class GitToolPolicy(ToolPolicy):
-    allowed_actions: list[str] = Field(default_factory=lambda: ["diff_since"])
+    allowed_actions: list[str] = Field(
+        default_factory=lambda: ["status", "log", "show", "rev_parse", "diff", "diff_since"]
+    )
     managed_branch_prefix: str = ""
     enforce_prefix_for_writes: bool = True
     allow_push: bool = False
@@ -19,7 +21,6 @@ class GitToolPolicy(ToolPolicy):
     max_output_chars: int = 60000
     max_files: int = 200
     max_since_chars: int = 64
-    since_pattern: str = r"^[A-Za-z0-9_:+\-.,/ ]+$"
     allowed_ref_pattern: str = r"^[A-Za-z0-9_./\-~^:@]+$"
     context_lines: int = 3
 
@@ -28,7 +29,7 @@ def tool_constructor(repo_root: Path, policy: ToolPolicy, rt: ToolRuntime):
     assert isinstance(policy, GitToolPolicy)
     tool_name = "git"
 
-    since_regex = re.compile(policy.since_pattern)
+    since_regex = re.compile(r"^[A-Za-z0-9_:+\-.,/ ]+$")
     ref_regex = re.compile(policy.allowed_ref_pattern)
     safe_branch_regex = re.compile(r"^[A-Za-z0-9._/\-]+$")
     context_lines = min(max(policy.context_lines, 0), 20)
@@ -138,7 +139,7 @@ def tool_constructor(repo_root: Path, policy: ToolPolicy, rt: ToolRuntime):
             if len(since) > policy.max_since_chars:
                 return _deny("since_too_long", max_since_chars=policy.max_since_chars)
             if not since_regex.fullmatch(since):
-                return _deny("since_pattern_mismatch")
+                return _deny("invalid_since_format")
 
             rc, base_commit, err = run_git(repo_root, ["rev-list", "-1", f"--before={since}", "HEAD"])
             if rc != 0:

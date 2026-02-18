@@ -67,7 +67,7 @@ def test_git_diff_since_rejects_bad_chars(tmp_path: Path) -> None:
     out = git_tool("diff_since", "1 day ago; rm -rf /")
     assert out.startswith("ERROR:")
     assert "denied_by_policy" in out
-    assert "since_pattern_mismatch" in out
+    assert "invalid_since_format" in out
 
 
 def test_git_diff_since_respects_max_files(tmp_path: Path) -> None:

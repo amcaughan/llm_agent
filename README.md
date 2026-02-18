@@ -67,7 +67,7 @@ Tool architecture:
 - the constructor applies policy checks before/after execution
 
 `git` tool starter policy knobs (configurable under `tools.git`):
-- `allowed_actions` (default `["diff_since"]`)
+- `allowed_actions` (default read-only set: `status`, `log`, `show`, `rev_parse`, `diff`, `diff_since`)
 - `managed_branch_prefix`
 - `enforce_prefix_for_writes`
 - `allow_push`
@@ -75,7 +75,6 @@ Tool architecture:
 - `max_output_chars`
 - `max_files`
 - `max_since_chars`
-- `since_pattern`
 - `allowed_ref_pattern`
 - `context_lines`
 
@@ -157,6 +156,14 @@ Purge downloaded models:
 ```bash
 ./docker/ollama/purge-models.sh
 ```
+
+One-command run (start Ollama -> run agent -> stop Ollama):
+
+```bash
+./scripts/run_agent_ollama.sh --profile default "Summarize current repo changes briefly."
+```
+
+Set `KEEP_OLLAMA_UP=1` to skip teardown.
 
 ## Smoke tests
 
