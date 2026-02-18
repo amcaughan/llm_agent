@@ -70,7 +70,9 @@ uv sync
 Edit `config/profiles/default.yml`:
 
 - set `backend: bedrock` or `backend: ollama`
-- set model IDs for the chosen backend
+- set model IDs in nested backend maps:
+  - `model.ollama.*`
+  - `model.bedrock.*`
 
 For Bedrock, ensure AWS credentials/profile are available in your shell.
 

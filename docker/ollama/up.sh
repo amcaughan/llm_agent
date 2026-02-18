@@ -24,7 +24,7 @@ MODEL="${MODEL:-}"
 
 if [ -z "$MODEL" ]; then
   if command -v yq >/dev/null 2>&1; then
-    MODEL="$(yq -r '.model.ollama.model_id // .ollama.model_id // .model.model_id // ""' "$CONFIG_FILE")"
+    MODEL="$(yq -r '.model.ollama.model_id // ""' "$CONFIG_FILE")"
   else
     echo "ERROR: yq is required to read $CONFIG_FILE (or set MODEL=...)" >&2
     exit 1

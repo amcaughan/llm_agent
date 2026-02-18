@@ -3,9 +3,7 @@ description: Default local development agent profile
 
 backend: bedrock
 
-# Model config supports either:
-# 1) backend-specific map (shown here), or
-# 2) a flat map for a single fixed backend.
+# Model config is backend-specific and nested.
 model:
   ollama:
     host: http://127.0.0.1:11434
