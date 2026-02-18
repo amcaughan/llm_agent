@@ -28,7 +28,7 @@ This repository is in an early but working stage.
 - `src/agent/`
   - `config.py`: typed config + env overrides
   - `backends.py`: backend model construction (Ollama/Bedrock)
-  - `tools.py`: tool library + profile-based tool selection
+  - `tools/`: tool library package (`core.py`, per-tool modules, `registry.py`)
   - `cli.py`: orchestration and runtime flow
   - `main.py`: compatibility wrapper that delegates to CLI run
   - `__main__.py`: supports module execution (`python -m agent`)
@@ -53,6 +53,33 @@ This repository is in an early but working stage.
    - `bedrock`: init `BedrockModel` with region + model ID
 4. Agent is created with profile system prompt + only configured tools.
 5. Prompt executes, result is printed to stdout.
+
+## Tool Library
+
+Current built-in tools:
+- `read_file`
+- `list_dir`
+- `git` (generic action tool: `git(action, arg1, arg2)`)
+
+Tool architecture:
+- each tool has a `ToolSpec` (tool builder) and a typed `ToolPolicy`
+- profile config under `tools.<tool_name>` is validated into that policy
+- the constructor applies policy checks before/after execution
+
+`git` tool starter policy knobs (configurable under `tools.git`):
+- `allowed_actions` (default `["diff_since"]`)
+- `managed_branch_prefix`
+- `enforce_prefix_for_writes`
+- `allow_push`
+- `allow_worktree_dirty`
+- `max_output_chars`
+- `max_files`
+- `max_since_chars`
+- `since_pattern`
+- `allowed_ref_pattern`
+- `context_lines`
+
+The tool executes fixed git command argument lists (no shell eval).
 
 ## Quick start
 
