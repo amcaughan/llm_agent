@@ -42,7 +42,7 @@ test = [
 ]
 
 [project.scripts]
-agent = "agent.main:main"
+agent = "agent.cli:run"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

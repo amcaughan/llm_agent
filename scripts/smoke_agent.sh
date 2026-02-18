@@ -27,8 +27,8 @@ esac
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-if [[ ! -f "$REPO_ROOT/config/agent.yml" ]]; then
-  echo "ERROR: config/agent.yml not found under $REPO_ROOT" >&2
+if [[ ! -f "$REPO_ROOT/config/profiles/default.yml" ]]; then
+  echo "ERROR: config/profiles/default.yml not found under $REPO_ROOT" >&2
   exit 2
 fi
 

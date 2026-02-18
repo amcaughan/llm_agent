@@ -14,7 +14,7 @@ The goal is to keep agent behavior and tooling stable while model providers chan
 
 This repository is in an early but working stage.
 
-- A CLI agent runs from `src/agent/main.py`.
+- A CLI agent runs through `src/agent/cli.py` (entrypoint exposed as `agent`).
 - Backend selection is config-driven (`bedrock` or `ollama`).
 - Two basic tools are implemented (`read_file`, `list_dir`).
 - Infra modules currently provision:
@@ -26,11 +26,14 @@ This repository is in an early but working stage.
 ## Repository layout
 
 - `src/agent/`
-  - `main.py`: agent startup, config loading, backend/model selection, tool registration
+  - `config.py`: typed config + env overrides
+  - `backends.py`: backend model construction (Ollama/Bedrock)
+  - `tools.py`: tool library + profile-based tool selection
+  - `cli.py`: orchestration and runtime flow
+  - `main.py`: compatibility wrapper that delegates to CLI run
   - `__main__.py`: supports module execution (`python -m agent`)
-- `config/agent.yml`
-  - active backend and model IDs
-  - system prompt text
+- `config/profiles/`
+  - one YAML profile per agent (`default.yml` currently)
 - `docker/ollama/`
   - scripts to run local Ollama in Docker and manage model cache
 - `docker/dev/`
@@ -44,11 +47,11 @@ This repository is in an early but working stage.
 ## Runtime architecture (today)
 
 1. CLI receives prompt from argv or stdin.
-2. Agent loads `config/agent.yml`.
-3. Backend is selected:
+2. Agent loads `config/profiles/<profile>.yml` (default: `default`).
+3. Backend/model is selected from profile config:
    - `ollama`: health-check `GET /api/tags`, then init `OllamaModel`
    - `bedrock`: init `BedrockModel` with region + model ID
-4. Agent is created with system prompt + local tools.
+4. Agent is created with profile system prompt + only configured tools.
 5. Prompt executes, result is printed to stdout.
 
 ## Quick start
@@ -64,7 +67,7 @@ uv sync
 
 ## 2) Configure backend
 
-Edit `config/agent.yml`:
+Edit `config/profiles/default.yml`:
 
 - set `backend: bedrock` or `backend: ollama`
 - set model IDs for the chosen backend
@@ -75,12 +78,14 @@ For Bedrock, ensure AWS credentials/profile are available in your shell.
 
 ```bash
 uv run agent "Summarize this repository in 5 bullets."
+uv run agent --profile default "Summarize this repository in 5 bullets."
 ```
 
 or:
 
 ```bash
 echo "List likely next implementation steps." | uv run agent
+echo "List likely next implementation steps." | uv run agent --profile default
 ```
 
 You can also override backend/model settings without editing config:
