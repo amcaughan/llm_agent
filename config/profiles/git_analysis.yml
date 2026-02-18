@@ -1,0 +1,47 @@
+name: git_analysis
+description: Local git-diff summarizer profile for harness testing
+
+backend: ollama
+
+model:
+  ollama:
+    host: http://127.0.0.1:11434
+    model_id: qwen2.5:1.5b-instruct
+  bedrock:
+    region: us-east-2
+    model_id: us.anthropic.claude-haiku-4-5-20251001-v1:0
+
+token_budget: {}
+
+logging:
+  level: INFO
+  format: text
+  max_field_chars: 400
+  log_model_startup: true
+  log_prompt_metadata: true
+  log_tool_calls: true
+  log_tool_results: true
+
+tools:
+  git:
+    allowed_actions:
+      - diff_since
+    max_output_chars: 80000
+    max_files: 300
+    max_since_chars: 64
+
+task_templates:
+  summarize_diff_since:
+    description: Summarize tracked file changes since a natural-language time.
+    inputs:
+      since:
+        required: true
+        description: Natural-language relative time, e.g. "1 hour ago".
+    template: |
+      Call git with action "diff_since" and arg1 "{since}".
+      Then summarize CHANGED_FILES and DIFF in 5 brief bullets.
+
+system_prompt: >
+  You are a concise git change analyst.
+  Always call the git tool first when asked about repository changes over time.
+  After tool output is returned, summarize briefly with concrete facts.

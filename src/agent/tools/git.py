@@ -1,6 +1,5 @@
 import logging
 import re
-import time
 from pathlib import Path
 from typing import Any
 
@@ -73,10 +72,6 @@ def tool_constructor(repo_root: Path, policy: ToolPolicy, rt: ToolRuntime):
         }
         return str(snap)
 
-    def _deny(reason: str, **fields: Any) -> str:
-        rt.policy_deny(tool_name, reason, **fields)
-        return f"ERROR: denied_by_policy reason={reason} policy={_policy_snapshot()}"
-
     @tool
     def git(action: str, arg1: str = "", arg2: str = "") -> str:
         """
@@ -93,201 +88,222 @@ def tool_constructor(repo_root: Path, policy: ToolPolicy, rt: ToolRuntime):
         - commit: arg1=message
         - push: arg1=remote(optional; default origin), arg2=branch(optional; default current)
         """
-        started = time.perf_counter()
         normalized_action = (action or "").strip().lower()
-        rt.before(tool_name, action=normalized_action, arg1=arg1, arg2=arg2)
-        rt.policy_before(tool_name, action=normalized_action)
+        ctx = rt.start(tool_name, action=normalized_action, arg1=arg1, arg2=arg2)
 
-        if normalized_action not in allowed_actions:
-            return _deny("action_not_allowed", action=normalized_action)
-
-        if normalized_action == "push" and not policy.allow_push:
-            return _deny("push_not_allowed", action=normalized_action)
-
-        if policy.enforce_prefix_for_writes and policy.managed_branch_prefix and normalized_action in write_like_actions:
-            try:
-                current = _current_branch()
-            except RuntimeError as e:
-                rt.after(
-                    logging.ERROR,
-                    tool_name,
-                    status="error",
-                    action=normalized_action,
-                    elapsed_ms=round((time.perf_counter() - started) * 1000, 2),
-                    error=str(e),
-                )
-                return f"ERROR: {e}"
-            if not _is_branch_allowed(current):
-                return _deny(
-                    "branch_prefix_required",
-                    action=normalized_action,
-                    current_branch=current,
-                    required_prefix=policy.managed_branch_prefix,
-                )
-
-        if normalized_action in write_actions and not policy.allow_worktree_dirty:
-            rc, out, err = run_git(repo_root, ["status", "--porcelain"])
-            if rc != 0:
-                return f"ERROR: failed to inspect worktree: {err.strip() or f'git exited {rc}'}"
-            if out.strip():
-                return _deny("dirty_worktree", action=normalized_action)
-
-        if normalized_action == "diff_since":
-            since = (arg1 or "").strip()
-            if not since:
-                return _deny("empty_since", action=normalized_action)
-            if len(since) > policy.max_since_chars:
-                return _deny("since_too_long", max_since_chars=policy.max_since_chars)
-            if not since_regex.fullmatch(since):
-                return _deny("invalid_since_format")
-
-            rc, base_commit, err = run_git(repo_root, ["rev-list", "-1", f"--before={since}", "HEAD"])
-            if rc != 0:
-                return f"ERROR: failed to resolve commit for since={since!r}: {err.strip() or f'git exited {rc}'}"
-            base_commit = base_commit.strip()
-            if not base_commit:
-                return f"ERROR: no commit found before {since!r}."
-
-            rc, files_out, err = run_git(repo_root, ["diff", "--name-only", "--no-color", f"{base_commit}..HEAD", "--", "."])
-            if rc != 0:
-                return f"ERROR: failed to list changed files: {err.strip() or f'git exited {rc}'}"
-            changed_files = [line.strip() for line in files_out.splitlines() if line.strip()]
-            if len(changed_files) > policy.max_files:
-                return _deny("too_many_files", max_files=policy.max_files, file_count=len(changed_files))
-
-            rc, diff_out, err = run_git(
-                repo_root,
-                [
-                    "diff",
-                    "--no-color",
-                    "--no-ext-diff",
-                    "--unified",
-                    str(context_lines),
-                    f"{base_commit}..HEAD",
-                    "--",
-                    ".",
-                ],
+        def _deny_action(reason: str, **fields: Any) -> str:
+            return ctx.deny(
+                reason,
+                message=f"ERROR: denied_by_policy reason={reason} policy={_policy_snapshot()}",
+                level=logging.WARNING,
+                policy=_policy_snapshot(),
+                **fields,
             )
-            if rc != 0:
-                return f"ERROR: failed to compute diff: {err.strip() or f'git exited {rc}'}"
 
-            out = (
-                f"BASE_COMMIT: {base_commit}\n"
-                f"RANGE: {base_commit}..HEAD\n"
-                f"SINCE: {since}\n"
-                f"CHANGED_FILES_COUNT: {len(changed_files)}\n"
-                f"CHANGED_FILES:\n{chr(10).join(changed_files) if changed_files else '(none)'}\n"
-                f"DIFF:\n{diff_out}"
-            )
-        elif normalized_action == "log":
-            ref = (arg1 or "HEAD").strip()
-            count = (arg2 or "20").strip()
-            ref_err = _validate_ref(ref, "ref")
-            if ref_err:
-                return ref_err
-            if not count.isdigit():
-                return "ERROR: max_count must be numeric."
-            rc, out, err = run_git(repo_root, ["log", "--oneline", f"-n{count}", ref])
-            if rc != 0:
-                return f"ERROR: git log failed: {err.strip() or f'git exited {rc}'}"
-        elif normalized_action == "diff":
-            base = (arg1 or "").strip()
-            head = (arg2 or "HEAD").strip()
-            for ref_name, ref in [("base_ref", base), ("head_ref", head)]:
-                ref_err = _validate_ref(ref, ref_name)
-                if ref_err:
-                    return ref_err
-            rc, out, err = run_git(repo_root, ["diff", "--no-color", "--no-ext-diff", f"{base}..{head}", "--", "."])
-            if rc != 0:
-                return f"ERROR: git diff failed: {err.strip() or f'git exited {rc}'}"
-        elif normalized_action == "show":
-            ref = (arg1 or "HEAD").strip()
-            ref_err = _validate_ref(ref, "ref")
-            if ref_err:
-                return ref_err
-            rc, out, err = run_git(repo_root, ["show", "--no-color", ref])
-            if rc != 0:
-                return f"ERROR: git show failed: {err.strip() or f'git exited {rc}'}"
-        elif normalized_action == "rev_parse":
-            ref = (arg1 or "HEAD").strip()
-            ref_err = _validate_ref(ref, "ref")
-            if ref_err:
-                return ref_err
-            rc, out, err = run_git(repo_root, ["rev-parse", ref])
-            if rc != 0:
-                return f"ERROR: git rev-parse failed: {err.strip() or f'git exited {rc}'}"
-        elif normalized_action == "status":
-            rc, out, err = run_git(repo_root, ["status", "--short", "--branch"])
-            if rc != 0:
-                return f"ERROR: git status failed: {err.strip() or f'git exited {rc}'}"
-        elif normalized_action == "create_branch":
-            branch = (arg1 or "").strip()
-            base = (arg2 or "HEAD").strip()
-            if not branch:
-                return "ERROR: branch name cannot be empty."
-            if not safe_branch_regex.fullmatch(branch):
-                return "ERROR: branch contains unsupported characters."
-            branch = _prefixed_branch(branch)
-            ref_err = _validate_ref(base, "base_ref")
-            if ref_err:
-                return ref_err
-            rc, out, err = run_git(repo_root, ["checkout", "-b", branch, base])
-            if rc != 0:
-                return f"ERROR: create_branch failed: {err.strip() or f'git exited {rc}'}"
-            out = out or f"Switched to new branch {branch!r}"
-        elif normalized_action == "checkout":
-            branch = _prefixed_branch((arg1 or "").strip())
-            if not branch:
-                return "ERROR: branch cannot be empty."
-            if not safe_branch_regex.fullmatch(branch):
-                return "ERROR: branch contains unsupported characters."
-            rc, out, err = run_git(repo_root, ["checkout", branch])
-            if rc != 0:
-                return f"ERROR: checkout failed: {err.strip() or f'git exited {rc}'}"
-        elif normalized_action == "commit":
-            msg = (arg1 or "").strip()
-            if not msg:
-                return "ERROR: commit message cannot be empty."
-            rc, out, err = run_git(repo_root, ["commit", "-m", msg])
-            if rc != 0:
-                return f"ERROR: commit failed: {err.strip() or f'git exited {rc}'}"
-        elif normalized_action == "push":
-            remote = (arg1 or "origin").strip()
-            branch = (arg2 or "").strip()
-            if not remote:
-                return "ERROR: remote cannot be empty."
-            if branch:
-                if not safe_branch_regex.fullmatch(branch):
-                    return "ERROR: branch contains unsupported characters."
-            else:
+        def _error(message: str, *, reason: str = "tool_error", level: int = logging.ERROR) -> str:
+            return ctx.error(message, reason=reason, level=level)
+
+        ctx.policy_before()
+
+        try:
+            if normalized_action not in allowed_actions:
+                return _deny_action("action_not_allowed", action=normalized_action)
+
+            if normalized_action == "push" and not policy.allow_push:
+                return _deny_action("push_not_allowed", action=normalized_action)
+
+            if policy.enforce_prefix_for_writes and policy.managed_branch_prefix and normalized_action in write_like_actions:
                 try:
-                    branch = _current_branch()
+                    current = _current_branch()
                 except RuntimeError as e:
-                    return f"ERROR: {e}"
-            branch = _prefixed_branch(branch)
-            if policy.managed_branch_prefix and not _is_branch_allowed(branch):
-                return _deny("branch_prefix_required", action=normalized_action, branch=branch)
-            rc, out, err = run_git(repo_root, ["push", remote, branch])
-            if rc != 0:
-                return f"ERROR: push failed: {err.strip() or f'git exited {rc}'}"
-        else:
-            return f"ERROR: unsupported action {normalized_action!r}."
+                    return _error(f"ERROR: {e}", reason="branch_resolution_failed")
+                if not _is_branch_allowed(current):
+                    return _deny_action(
+                        "branch_prefix_required",
+                        action=normalized_action,
+                        current_branch=current,
+                        required_prefix=policy.managed_branch_prefix,
+                    )
+
+            if normalized_action in write_actions and not policy.allow_worktree_dirty:
+                rc, out, err = run_git(repo_root, ["status", "--porcelain"])
+                if rc != 0:
+                    return _error(
+                        f"ERROR: failed to inspect worktree: {err.strip() or f'git exited {rc}'}",
+                        reason="worktree_inspection_failed",
+                    )
+                if out.strip():
+                    return _deny_action("dirty_worktree", action=normalized_action)
+
+            if normalized_action == "diff_since":
+                since = (arg1 or "").strip()
+                if not since:
+                    return _deny_action("empty_since", action=normalized_action)
+                if len(since) > policy.max_since_chars:
+                    return _deny_action("since_too_long", max_since_chars=policy.max_since_chars)
+                if not since_regex.fullmatch(since):
+                    return _deny_action("invalid_since_format")
+
+                rc, base_commit, err = run_git(repo_root, ["rev-list", "-1", f"--before={since}", "HEAD"])
+                if rc != 0:
+                    return _error(
+                        f"ERROR: failed to resolve commit for since={since!r}: {err.strip() or f'git exited {rc}'}",
+                        reason="base_commit_resolution_failed",
+                    )
+                base_commit = base_commit.strip()
+                if not base_commit:
+                    return _error(f"ERROR: no commit found before {since!r}.", reason="no_commit_before_since")
+
+                rc, files_out, err = run_git(
+                    repo_root, ["diff", "--name-only", "--no-color", f"{base_commit}..HEAD", "--", "."]
+                )
+                if rc != 0:
+                    return _error(
+                        f"ERROR: failed to list changed files: {err.strip() or f'git exited {rc}'}",
+                        reason="changed_files_listing_failed",
+                    )
+                changed_files = [line.strip() for line in files_out.splitlines() if line.strip()]
+                if len(changed_files) > policy.max_files:
+                    return _deny_action("too_many_files", max_files=policy.max_files, file_count=len(changed_files))
+
+                rc, diff_out, err = run_git(
+                    repo_root,
+                    [
+                        "diff",
+                        "--no-color",
+                        "--no-ext-diff",
+                        f"--unified={context_lines}",
+                        f"{base_commit}..HEAD",
+                        "--",
+                        ".",
+                    ],
+                )
+                if rc != 0:
+                    return _error(
+                        f"ERROR: failed to compute diff: {err.strip() or f'git exited {rc}'}",
+                        reason="diff_generation_failed",
+                    )
+
+                out = (
+                    f"BASE_COMMIT: {base_commit}\n"
+                    f"RANGE: {base_commit}..HEAD\n"
+                    f"SINCE: {since}\n"
+                    f"CHANGED_FILES_COUNT: {len(changed_files)}\n"
+                    f"CHANGED_FILES:\n{chr(10).join(changed_files) if changed_files else '(none)'}\n"
+                    f"DIFF:\n{diff_out}"
+                )
+            elif normalized_action == "log":
+                ref = (arg1 or "HEAD").strip()
+                count = (arg2 or "20").strip()
+                ref_err = _validate_ref(ref, "ref")
+                if ref_err:
+                    return _error(ref_err, reason="invalid_ref")
+                if not count.isdigit():
+                    return _error("ERROR: max_count must be numeric.", reason="invalid_max_count")
+                rc, out, err = run_git(repo_root, ["log", "--oneline", f"-n{count}", ref])
+                if rc != 0:
+                    return _error(f"ERROR: git log failed: {err.strip() or f'git exited {rc}'}", reason="git_log_failed")
+            elif normalized_action == "diff":
+                base = (arg1 or "").strip()
+                head = (arg2 or "HEAD").strip()
+                for ref_name, ref in [("base_ref", base), ("head_ref", head)]:
+                    ref_err = _validate_ref(ref, ref_name)
+                    if ref_err:
+                        return _error(ref_err, reason="invalid_ref")
+                rc, out, err = run_git(repo_root, ["diff", "--no-color", "--no-ext-diff", f"{base}..{head}", "--", "."])
+                if rc != 0:
+                    return _error(f"ERROR: git diff failed: {err.strip() or f'git exited {rc}'}", reason="git_diff_failed")
+            elif normalized_action == "show":
+                ref = (arg1 or "HEAD").strip()
+                ref_err = _validate_ref(ref, "ref")
+                if ref_err:
+                    return _error(ref_err, reason="invalid_ref")
+                rc, out, err = run_git(repo_root, ["show", "--no-color", ref])
+                if rc != 0:
+                    return _error(f"ERROR: git show failed: {err.strip() or f'git exited {rc}'}", reason="git_show_failed")
+            elif normalized_action == "rev_parse":
+                ref = (arg1 or "HEAD").strip()
+                ref_err = _validate_ref(ref, "ref")
+                if ref_err:
+                    return _error(ref_err, reason="invalid_ref")
+                rc, out, err = run_git(repo_root, ["rev-parse", ref])
+                if rc != 0:
+                    return _error(
+                        f"ERROR: git rev-parse failed: {err.strip() or f'git exited {rc}'}",
+                        reason="git_rev_parse_failed",
+                    )
+            elif normalized_action == "status":
+                rc, out, err = run_git(repo_root, ["status", "--short", "--branch"])
+                if rc != 0:
+                    return _error(
+                        f"ERROR: git status failed: {err.strip() or f'git exited {rc}'}", reason="git_status_failed"
+                    )
+            elif normalized_action == "create_branch":
+                branch = (arg1 or "").strip()
+                base = (arg2 or "HEAD").strip()
+                if not branch:
+                    return _error("ERROR: branch name cannot be empty.", reason="empty_branch")
+                if not safe_branch_regex.fullmatch(branch):
+                    return _error("ERROR: branch contains unsupported characters.", reason="invalid_branch")
+                branch = _prefixed_branch(branch)
+                ref_err = _validate_ref(base, "base_ref")
+                if ref_err:
+                    return _error(ref_err, reason="invalid_ref")
+                rc, out, err = run_git(repo_root, ["checkout", "-b", branch, base])
+                if rc != 0:
+                    return _error(
+                        f"ERROR: create_branch failed: {err.strip() or f'git exited {rc}'}",
+                        reason="git_create_branch_failed",
+                    )
+                out = out or f"Switched to new branch {branch!r}"
+            elif normalized_action == "checkout":
+                branch = _prefixed_branch((arg1 or "").strip())
+                if not branch:
+                    return _error("ERROR: branch cannot be empty.", reason="empty_branch")
+                if not safe_branch_regex.fullmatch(branch):
+                    return _error("ERROR: branch contains unsupported characters.", reason="invalid_branch")
+                rc, out, err = run_git(repo_root, ["checkout", branch])
+                if rc != 0:
+                    return _error(
+                        f"ERROR: checkout failed: {err.strip() or f'git exited {rc}'}", reason="git_checkout_failed"
+                    )
+            elif normalized_action == "commit":
+                msg = (arg1 or "").strip()
+                if not msg:
+                    return _error("ERROR: commit message cannot be empty.", reason="empty_commit_message")
+                rc, out, err = run_git(repo_root, ["commit", "-m", msg])
+                if rc != 0:
+                    return _error(f"ERROR: commit failed: {err.strip() or f'git exited {rc}'}", reason="git_commit_failed")
+            elif normalized_action == "push":
+                remote = (arg1 or "origin").strip()
+                branch = (arg2 or "").strip()
+                if not remote:
+                    return _error("ERROR: remote cannot be empty.", reason="empty_remote")
+                if branch:
+                    if not safe_branch_regex.fullmatch(branch):
+                        return _error("ERROR: branch contains unsupported characters.", reason="invalid_branch")
+                else:
+                    try:
+                        branch = _current_branch()
+                    except RuntimeError as e:
+                        return _error(f"ERROR: {e}", reason="branch_resolution_failed")
+                branch = _prefixed_branch(branch)
+                if policy.managed_branch_prefix and not _is_branch_allowed(branch):
+                    return _deny_action("branch_prefix_required", action=normalized_action, branch=branch)
+                rc, out, err = run_git(repo_root, ["push", remote, branch])
+                if rc != 0:
+                    return _error(f"ERROR: push failed: {err.strip() or f'git exited {rc}'}", reason="git_push_failed")
+            else:
+                return _error(f"ERROR: unsupported action {normalized_action!r}.", reason="unsupported_action")
+        except Exception as e:  # pragma: no cover - defensive logging path
+            return _error(f"ERROR: unexpected git tool failure: {e}", reason="unexpected_exception")
 
         truncated = False
         if len(out) > policy.max_output_chars:
             out = out[: policy.max_output_chars]
             truncated = True
 
-        rt.after(
-            logging.INFO,
-            tool_name,
-            status="ok",
-            action=normalized_action,
-            elapsed_ms=round((time.perf_counter() - started) * 1000, 2),
-            output_chars=len(out),
-            truncated=truncated,
-        )
-        return out
+        return ctx.ok(out, truncated=truncated)
 
     return git
 

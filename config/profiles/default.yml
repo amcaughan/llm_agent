@@ -26,6 +26,9 @@ logging:
 tools:
   read_file: {}
   list_dir: {}
+  git:
+    allowed_actions:
+      - diff_since
 
 task_templates: {}
 

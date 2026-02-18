@@ -117,6 +117,14 @@ echo "List likely next implementation steps." | uv run agent
 echo "List likely next implementation steps." | uv run agent --profile default
 ```
 
+Template-driven run:
+
+```bash
+uv run agent --profile git_analysis --template summarize_diff_since --input since "1 hour ago"
+```
+
+`--input` can be repeated (`--input key value --input key value`) for multi-input templates.
+
 You can also override backend/model settings without editing config:
 
 ```bash
