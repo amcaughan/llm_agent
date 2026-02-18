@@ -41,6 +41,9 @@ test = [
   "pytest>=8.0",
 ]
 
+[project.scripts]
+agent = "agent.main:main"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

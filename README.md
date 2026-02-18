@@ -27,7 +27,7 @@ This repository is in an early but working stage.
 
 - `src/agent/`
   - `main.py`: agent startup, config loading, backend/model selection, tool registration
-  - `__main__.py`: allows `uv run -m agent`
+  - `__main__.py`: supports module execution (`python -m agent`)
 - `config/agent.yml`
   - active backend and model IDs
   - system prompt text
@@ -74,20 +74,20 @@ For Bedrock, ensure AWS credentials/profile are available in your shell.
 ## 3) Run the agent
 
 ```bash
-uv run -m agent "Summarize this repository in 5 bullets."
+uv run agent "Summarize this repository in 5 bullets."
 ```
 
 or:
 
 ```bash
-echo "List likely next implementation steps." | uv run -m agent
+echo "List likely next implementation steps." | uv run agent
 ```
 
 You can also override backend/model settings without editing config:
 
 ```bash
-AGENT_BACKEND=ollama uv run -m agent "Reply with exactly HI"
-AGENT_BACKEND=bedrock uv run -m agent "Reply with exactly HI"
+AGENT_BACKEND=ollama uv run agent "Reply with exactly HI"
+AGENT_BACKEND=bedrock uv run agent "Reply with exactly HI"
 ```
 
 ## Local Ollama workflow

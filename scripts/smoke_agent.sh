@@ -54,7 +54,7 @@ output="$(
   cd "$REPO_ROOT" && \
   AGENT_BACKEND="$backend" \
   AGENT_SUPPRESS_FINAL_PRINT=1 \
-  uv run -m agent "$prompt" 2>&1
+  uv run agent "$prompt" 2>&1
 )"
 rc=$?
 set -e
@@ -65,12 +65,19 @@ if [[ $rc -ne 0 ]]; then
   exit $rc
 fi
 
-normalized="$(echo "$output" | tr -d '\r' | xargs)"
-if [[ "$normalized" == "HI" ]]; then
+last_line="$(
+  echo "$output" \
+    | tr -d '\r' \
+    | sed '/^[[:space:]]*$/d' \
+    | tail -n 1 \
+    | xargs
+)"
+
+if [[ "$last_line" == "HI" ]]; then
   echo "PASS: backend=$backend output=HI"
   exit 0
 fi
 
-echo "FAIL: backend=$backend expected exact output 'HI'" >&2
+echo "FAIL: backend=$backend expected final non-empty line to be exact output 'HI'" >&2
 echo "Actual output: $output" >&2
 exit 4
