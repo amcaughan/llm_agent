@@ -53,6 +53,7 @@ set +e
 output="$(
   cd "$REPO_ROOT" && \
   AGENT_BACKEND="$backend" \
+  AGENT_LOG_LEVEL=ERROR \
   AGENT_SUPPRESS_FINAL_PRINT=1 \
   uv run agent "$prompt" 2>&1
 )"

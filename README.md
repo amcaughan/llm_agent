@@ -73,6 +73,7 @@ Edit `config/profiles/default.yml`:
 - set model IDs in nested backend maps:
   - `model.ollama.*`
   - `model.bedrock.*`
+- tune observability under `logging` (level/format/event toggles)
 
 For Bedrock, ensure AWS credentials/profile are available in your shell.
 
@@ -95,6 +96,13 @@ You can also override backend/model settings without editing config:
 ```bash
 AGENT_BACKEND=ollama uv run agent "Reply with exactly HI"
 AGENT_BACKEND=bedrock uv run agent "Reply with exactly HI"
+```
+
+Optional logging overrides:
+
+```bash
+AGENT_LOG_LEVEL=DEBUG uv run agent "Hello"
+AGENT_LOG_FORMAT=json uv run agent "Hello"
 ```
 
 ## Local Ollama workflow
