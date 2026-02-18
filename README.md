@@ -167,6 +167,8 @@ Run via your local toolchain or `docker/dev/dev-container.sh`.
 - No formal tests yet (unit/integration/e2e).
 - No provider abstraction layer yet beyond `if/elif` backend switch.
 - No remote Ollama (EC2 + SSM tunnel) implementation yet.
+- Profiles are currently treated as trusted inputs.
+- Tool-level access control/policy hooks are planned but not enforced yet.
 - Tooling is minimal and currently read-only.
 - Error handling/config validation is functional but not strict/typed.
 

@@ -62,6 +62,8 @@ TOOL_REGISTRY: dict[str, ToolBuilder] = {
 
 
 def build_tools(repo_root: Path, tool_configs: dict[str, dict[str, Any]]):
+    # Current security model: profiles are trusted. Tool-level access controls
+    # (before/after hooks, path policies, command restrictions) are planned.
     tools = []
     for tool_name, tool_cfg in tool_configs.items():
         builder = TOOL_REGISTRY.get(tool_name)
