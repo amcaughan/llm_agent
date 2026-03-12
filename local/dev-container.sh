@@ -43,7 +43,7 @@ build() {
   docker build \
     -f "$DOCKERFILE" \
     -t "$IMAGE_NAME" \
-    "$REPO_ROOT"
+    "$REPO_ROOT/local"
 }
 
 ensure_image() {
@@ -77,7 +77,7 @@ run() {
 
 case "$cmd" in
   build) build ;;
-  rebuild) docker build --no-cache -f "$REPO_ROOT/docker/dev/Dockerfile" -t "$IMAGE_NAME" "$REPO_ROOT" ;;
+  rebuild) docker build --no-cache -f "$REPO_ROOT/local/Dockerfile" -t "$IMAGE_NAME" "$REPO_ROOT/local" ;;
   destroy) destroy_image ;;
   prune) prune_dangling ;;
   shell) run bash ;;

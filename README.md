@@ -36,7 +36,7 @@ This repository is in an early but working stage.
   - one YAML profile per agent (`default.yml` currently)
 - `docker/ollama/`
   - scripts to run local Ollama in Docker and manage model cache
-- `docker/dev/`
+- `local/`
   - dev container with AWS CLI, Terraform, Terragrunt
 - `infra/terragrunt/`
   - `modules/`: reusable Terraform modules
@@ -212,7 +212,7 @@ Current infra stacks are under:
 - `infra/terragrunt/live/prod/budget`
 - `infra/terragrunt/live/prod/bedrock-iam`
 
-Run via your local toolchain or `docker/dev/dev-container.sh`.
+Run via your local toolchain or `local/dev-container.sh`.
 
 ## Known gaps and caveats
 
